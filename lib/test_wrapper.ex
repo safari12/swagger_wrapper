@@ -1,3 +1,3 @@
 defmodule TestWrapper do
-  use SwaggerWrapper
+  use SwaggerWrapper, filepath: "coingecko_swagger.json"
 end
