@@ -24,7 +24,9 @@ defmodule SwaggerWrapper do
     |> Enum.map(fn path ->
       path
       |> (fn p ->
-            params = json["paths"][p]["get"]["parameters"]
+            info = json["paths"][p]["get"]
+            params = info["parameters"]
+            params_doc = get_params_doc(params)
             path_params = get_path_params(params)
             query_params = get_query_params(params)
 
@@ -57,7 +59,14 @@ defmodule SwaggerWrapper do
 
             opts = Macro.var(:opts, nil)
 
+            doc = """
+              #{info["summary"]}
+
+              #{params_doc}
+            """
+
             quote do
+              @doc unquote(doc)
               def unquote(String.to_atom(name))(
                     unquote_splicing(param_macros ++ query_param_macros ++ [opts])
                   ) do
@@ -106,6 +115,20 @@ defmodule SwaggerWrapper do
         ps
         |> Enum.filter(fn p ->
           p["in"] == "path"
+        end)
+    end
+  end
+
+  defp get_params_doc(params) do
+    case params do
+      nil ->
+        ""
+
+      ps ->
+        ps
+        |> Enum.reduce("##Parameters\n", fn x, acc ->
+          description = String.replace(x["description"], ~r/<(.|\n)*?>/, "")
+          acc <> "- #{x["name"]}: #{description}\n"
         end)
     end
   end
