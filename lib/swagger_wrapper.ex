@@ -7,13 +7,13 @@ defmodule SwaggerWrapper do
     end
 
     with {:ok, json} <- read_json_file(filepath) do
-      generate_path_functions(json)
+      generate_wrapper(json)
     else
       err -> err
     end
   end
 
-  def generate_path_functions(json) do
+  defp generate_wrapper(json) do
     base_url = "https://#{json["host"]}#{json["basePath"]}"
 
     json["paths"]
@@ -21,102 +21,128 @@ defmodule SwaggerWrapper do
     |> Enum.filter(fn p ->
       json["paths"][p]["get"] != nil
     end)
-    |> Enum.map(fn path ->
-      path
-      |> (fn p ->
-            info = json["paths"][p]["get"]
-            params = info["parameters"]
-            params_doc = get_params_doc(params)
-            path_params = get_path_params(params)
-            query_params = get_query_params(params)
-
-            param_names =
-              path_params
-              |> Enum.map(& &1["name"])
-
-            query_param_names =
-              query_params
-              |> Enum.map(& &1["name"])
-
-            param_patterns =
-              param_names
-              |> Enum.map(&"/{#{&1}}")
-
-            name =
-              p
-              |> String.split(["/"] ++ param_patterns, trim: true)
-              |> Enum.join("_")
-
-            url = base_url <> p
-
-            param_macros =
-              param_names
-              |> Enum.map(&Macro.var(String.to_atom(&1), nil))
-
-            query_param_macros =
-              query_param_names
-              |> Enum.map(&Macro.var(String.to_atom(&1), nil))
-
-            opts = Macro.var(:opts, nil)
-
-            doc = """
-              #{info["summary"]}
-
-              #{params_doc}
-            """
-
-            quote do
-              @doc unquote(doc)
-              def unquote(String.to_atom(name))(
-                    unquote_splicing(param_macros ++ query_param_macros ++ [opts])
-                  ) do
-                normalized_url =
-                  unquote(param_macros)
-                  |> Enum.with_index()
-                  |> Enum.reduce(unquote(url), fn {m, i}, acc ->
-                    Macro.escape(acc)
-                    |> String.replace(
-                      "{#{Enum.at(unquote(param_names), i)}}",
-                      "#{m}"
-                    )
-                  end)
-
-                full_url =
-                  unquote(query_param_macros)
-                  |> Enum.with_index()
-                  |> Enum.reduce(%{}, fn {q, i}, acc ->
-                    Map.put(acc, Enum.at(unquote(query_param_names), i), q)
-                  end)
-                  |> Map.merge(Enum.into(unquote(opts), %{}))
-                  |> URI.encode_query()
-                  |> (fn x ->
-                        case x do
-                          "" ->
-                            normalized_url
-
-                          _ ->
-                            normalized_url <> "?#{x}"
-                        end
-                      end).()
-
-                HTTPoison.get(Macro.escape(full_url))
-              end
-            end
-          end).()
-    end)
+    |> Enum.map(&generate_wrapper_function(&1, json, base_url))
   end
 
-  defp get_path_params(params) do
-    case params do
-      nil ->
-        []
+  defp generate_wrapper_function(path, json, base_url) do
+    info = json["paths"][path]["get"]
+    params = info["parameters"]
+    params_doc = get_params_doc(params)
 
-      ps ->
-        ps
-        |> Enum.filter(fn p ->
-          p["in"] == "path"
-        end)
+    path_param_names =
+      params
+      |> get_path_params()
+      |> get_param_names()
+
+    query_param_names =
+      params
+      |> get_query_params()
+      |> get_param_names()
+
+    fn_name = get_wrapper_fn_name(path, path_param_names)
+    url = base_url <> path
+
+    param_macro_vars = path_param_names |> get_macro_vars()
+    query_macro_vars = query_param_names |> get_macro_vars()
+    opts = Macro.var(:opts, nil)
+
+    doc = get_doc(info["summary"], params_doc)
+
+    generate_http_wrapper_function(
+      doc,
+      url,
+      fn_name,
+      param_macro_vars,
+      path_param_names,
+      query_macro_vars,
+      query_param_names,
+      opts
+    )
+  end
+
+  defp generate_http_wrapper_function(
+         doc,
+         url,
+         fn_name,
+         param_macro_vars,
+         param_names,
+         query_macro_vars,
+         query_names,
+         opts
+       ) do
+    quote do
+      @doc unquote(doc)
+      def unquote(String.to_atom(fn_name))(
+            unquote_splicing(param_macro_vars ++ query_macro_vars ++ [opts])
+          ) do
+        normalized_url =
+          unquote(param_macro_vars)
+          |> Enum.with_index()
+          |> Enum.reduce(unquote(url), fn {m, i}, acc ->
+            Macro.escape(acc)
+            |> String.replace(
+              "{#{Enum.at(unquote(param_names), i)}}",
+              "#{m}"
+            )
+          end)
+
+        full_url =
+          unquote(query_macro_vars)
+          |> Enum.with_index()
+          |> Enum.reduce(%{}, fn {q, i}, acc ->
+            Map.put(acc, Enum.at(unquote(query_names), i), q)
+          end)
+          |> Map.merge(Enum.into(unquote(opts), %{}))
+          |> URI.encode_query()
+          |> (fn x ->
+                case x do
+                  "" ->
+                    normalized_url
+
+                  _ ->
+                    normalized_url <> "?#{x}"
+                end
+              end).()
+
+        case HTTPoison.get(Macro.escape(full_url)) do
+          {:ok, %HTTPoison.Response{body: body} = response} ->
+            {:ok, %HTTPoison.Response{response | body: Poison.decode!(body)}}
+
+          err ->
+            err
+        end
+      end
     end
+  end
+
+  defp get_macro_vars(x), do: x |> Enum.map(&Macro.var(String.to_atom(&1), nil))
+
+  defp get_wrapper_fn_name(path, path_param_names) do
+    param_patterns =
+      path_param_names
+      |> Enum.map(&"/{#{&1}}")
+
+    path
+    |> String.split(["/"] ++ param_patterns, trim: true)
+    |> Enum.join("_")
+  end
+
+  defp get_path_params(nil), do: []
+  defp get_path_params(params), do: params |> Enum.filter(&(&1["in"] == "path"))
+
+  defp get_query_params(nil), do: []
+
+  defp get_query_params(params),
+    do: params |> Enum.filter(&(&1["in"] == "query" && &1["required"] == true))
+
+  defp get_param_names(params), do: params |> Enum.map(& &1["name"])
+
+  defp get_doc(summary, params_doc) do
+    """
+    #{summary}
+
+    #{params_doc}
+    """
   end
 
   defp get_params_doc(params) do
@@ -126,22 +152,9 @@ defmodule SwaggerWrapper do
 
       ps ->
         ps
-        |> Enum.reduce("##Parameters\n", fn x, acc ->
+        |> Enum.reduce("## Parameters\n", fn x, acc ->
           description = String.replace(x["description"], ~r/<(.|\n)*?>/, "")
           acc <> "- #{x["name"]}: #{description}\n"
-        end)
-    end
-  end
-
-  defp get_query_params(params) do
-    case params do
-      nil ->
-        []
-
-      ps ->
-        ps
-        |> Enum.filter(fn p ->
-          p["in"] == "query" and p["required"] == true
         end)
     end
   end
