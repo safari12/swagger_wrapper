@@ -36,10 +36,16 @@ defmodule SwaggerWrapper do
     |> Enum.map(fn path ->
       path
       |> (fn p ->
-            params = get_path_params(json["paths"][p]["get"]["parameters"])
+            params = json["paths"][p]["get"]["parameters"]
+            path_params = get_path_params(params)
+            query_params = get_query_params(params)
 
             param_names =
-              params
+              path_params
+              |> Enum.map(& &1["name"])
+
+            query_param_names =
+              query_params
               |> Enum.map(& &1["name"])
 
             param_patterns =
@@ -57,13 +63,14 @@ defmodule SwaggerWrapper do
               param_names
               |> Enum.map(&Macro.var(String.to_atom(&1), nil))
 
-            quote do
-              def unquote(String.to_atom(name))(unquote_splicing(param_macros)) do
-                # unquote(param_macros)
-                # |> Enum.each(fn m ->
-                #   IO.inspect(m)
-                # end)
+            query_param_macros =
+              query_param_names
+              |> Enum.map(&Macro.var(String.to_atom(&1), nil))
 
+            quote do
+              def unquote(String.to_atom(name))(
+                    unquote_splicing(param_macros ++ query_param_macros)
+                  ) do
                 normalized_url =
                   unquote(param_macros)
                   |> Enum.with_index()
@@ -75,7 +82,24 @@ defmodule SwaggerWrapper do
                     )
                   end)
 
-                HTTPoison.get(Macro.escape(normalized_url))
+                full_url =
+                  unquote(query_param_macros)
+                  |> Enum.with_index()
+                  |> Enum.reduce(%{}, fn {q, i}, acc ->
+                    Map.put(acc, Enum.at(unquote(query_param_names), i), q)
+                  end)
+                  |> URI.encode_query()
+                  |> (fn x ->
+                        case x do
+                          "" ->
+                            normalized_url
+
+                          _ ->
+                            normalized_url <> "?#{x}"
+                        end
+                      end).()
+
+                HTTPoison.get(Macro.escape(full_url))
               end
             end
           end).()
@@ -91,6 +115,19 @@ defmodule SwaggerWrapper do
         ps
         |> Enum.filter(fn p ->
           p["in"] == "path"
+        end)
+    end
+  end
+
+  defp get_query_params(params) do
+    case params do
+      nil ->
+        []
+
+      ps ->
+        ps
+        |> Enum.filter(fn p ->
+          p["in"] == "query"
         end)
     end
   end
