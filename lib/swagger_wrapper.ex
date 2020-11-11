@@ -6,22 +6,10 @@ defmodule SwaggerWrapper do
       import unquote(__MODULE__)
     end
 
-    # generate_test_function(:test)
-
     with {:ok, json} <- read_json_file(filepath) do
       generate_path_functions(json)
     else
       err -> err
-    end
-  end
-
-  def generate_test_function(fn_name) do
-    quote do
-      def unquote(fn_name)(unquote_splicing([Macro.var(:id, nil)])) do
-        IO.inspect(unquote(Macro.var(:id, nil)))
-        # IO.inspect(id)
-        # IO.inspect(arg2)
-      end
     end
   end
 
@@ -67,9 +55,11 @@ defmodule SwaggerWrapper do
               query_param_names
               |> Enum.map(&Macro.var(String.to_atom(&1), nil))
 
+            opts = Macro.var(:opts, nil)
+
             quote do
               def unquote(String.to_atom(name))(
-                    unquote_splicing(param_macros ++ query_param_macros)
+                    unquote_splicing(param_macros ++ query_param_macros ++ [opts])
                   ) do
                 normalized_url =
                   unquote(param_macros)
@@ -88,6 +78,7 @@ defmodule SwaggerWrapper do
                   |> Enum.reduce(%{}, fn {q, i}, acc ->
                     Map.put(acc, Enum.at(unquote(query_param_names), i), q)
                   end)
+                  |> Map.merge(Enum.into(unquote(opts), %{}))
                   |> URI.encode_query()
                   |> (fn x ->
                         case x do
@@ -127,7 +118,7 @@ defmodule SwaggerWrapper do
       ps ->
         ps
         |> Enum.filter(fn p ->
-          p["in"] == "query"
+          p["in"] == "query" and p["required"] == true
         end)
     end
   end
