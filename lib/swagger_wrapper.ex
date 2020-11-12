@@ -1,19 +1,20 @@
 defmodule SwaggerWrapper do
   defmacro __using__(opts) do
     filepath = opts[:filepath]
+    http_adapter = opts[:http_adapter]
 
     quote do
       import unquote(__MODULE__)
     end
 
     with {:ok, json} <- read_json_file(filepath) do
-      generate_wrapper(json)
+      generate_wrapper(json, http_adapter)
     else
       err -> err
     end
   end
 
-  defp generate_wrapper(json) do
+  defp generate_wrapper(json, http_adapter) do
     base_url = "https://#{json["host"]}#{json["basePath"]}"
 
     json["paths"]
@@ -21,10 +22,10 @@ defmodule SwaggerWrapper do
     |> Enum.filter(fn p ->
       json["paths"][p]["get"] != nil
     end)
-    |> Enum.map(&generate_wrapper_function(&1, json, base_url))
+    |> Enum.map(&generate_wrapper_function(&1, json, base_url, http_adapter))
   end
 
-  defp generate_wrapper_function(path, json, base_url) do
+  defp generate_wrapper_function(path, json, base_url, http_adapter) do
     info = json["paths"][path]["get"]
     params = info["parameters"]
     params_doc = get_params_doc(params)
@@ -56,7 +57,8 @@ defmodule SwaggerWrapper do
       path_param_names,
       query_macro_vars,
       query_param_names,
-      opts
+      opts,
+      http_adapter
     )
   end
 
@@ -68,7 +70,8 @@ defmodule SwaggerWrapper do
          param_names,
          query_macro_vars,
          query_names,
-         opts
+         opts,
+         http_adapter
        ) do
     quote do
       @doc unquote(doc)
@@ -104,7 +107,7 @@ defmodule SwaggerWrapper do
                 end
               end).()
 
-        case HTTPoison.get(Macro.escape(full_url)) do
+        case unquote(http_adapter).get(Macro.escape(full_url)) do
           {:ok, %HTTPoison.Response{body: body} = response} ->
             {:ok, %HTTPoison.Response{response | body: Poison.decode!(body)}}
 
