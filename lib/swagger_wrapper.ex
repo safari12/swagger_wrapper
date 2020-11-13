@@ -108,8 +108,8 @@ defmodule SwaggerWrapper do
               end).()
 
         case unquote(http_adapter).get(Macro.escape(full_url)) do
-          {:ok, %HTTPoison.Response{body: body} = response} ->
-            {:ok, %HTTPoison.Response{response | body: Poison.decode!(body)}}
+          {:ok, %{body: body} = response} ->
+            {:ok, %{response | body: Poison.decode!(body)}}
 
           err ->
             err
