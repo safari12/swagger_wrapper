@@ -1,0 +1,78 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "version": "3.0.0",
+    "title": "api example"
+  },
+  "host": "api.example.com",
+  "basePath": "/api/v3",
+  "schemes": ["https"],
+  "paths": {
+    "/test": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint",
+        "description": "Simple Test Endpoint",
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
+    },
+    "/test/{id}/hello": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint with url param",
+        "description": "Simple Test Endpoint with url param",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "id param",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
+    },
+    "/test/{id}/hello/{address}/world": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint with multiple url params",
+        "description": "Simple Test Endpoint with multiple url params",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "id param",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "in": "path",
+            "description": "address param",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
+    }
+  }
+}
