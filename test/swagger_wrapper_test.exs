@@ -29,6 +29,10 @@ defmodule SwaggerWrapperTest do
     test "with query params" do
       assert Kernel.function_exported?(TestWrapper, :test_with_query_params, 3)
     end
+
+    test "with both params" do
+      assert Kernel.function_exported?(TestWrapper, :test_with_both_params, 5)
+    end
   end
 
   describe "should create http request" do
@@ -65,6 +69,16 @@ defmodule SwaggerWrapperTest do
       end)
 
       assert {:ok, response} = TestWrapper.test_with_query_params("1", "hello", [])
+      assert expected_body() == response.body
+    end
+
+    test "test_with_both_params" do
+      expect(Http.Mock, :get, fn @base_url <>
+                                   "/test/1/with/blah/both/params?enabled=true&message=hello" ->
+        sample_http_response()
+      end)
+
+      assert {:ok, response} = TestWrapper.test_with_both_params("1", "blah", "hello", "true", [])
       assert expected_body() == response.body
     end
   end
