@@ -73,6 +73,35 @@
           }
         }
       }
+    },
+    "/test/with/query/params": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint with multiple params",
+        "description": "Simple Test Endpoint with multiple params",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "description": "id param",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "description": "address param",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
     }
   }
 }

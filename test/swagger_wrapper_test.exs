@@ -25,6 +25,10 @@ defmodule SwaggerWrapperTest do
     test "test_hello_world with arity 3" do
       assert Kernel.function_exported?(TestWrapper, :test_hello_world, 3)
     end
+
+    test "with query params" do
+      assert Kernel.function_exported?(TestWrapper, :test_with_query_params, 3)
+    end
   end
 
   describe "should create http request" do
@@ -52,6 +56,15 @@ defmodule SwaggerWrapperTest do
       end)
 
       assert {:ok, response} = TestWrapper.test_hello_world("1", "blah", [])
+      assert expected_body() == response.body
+    end
+
+    test "test_with_query_params" do
+      expect(Http.Mock, :get, fn @base_url <> "/test/with/query/params?address=hello&id=1" ->
+        sample_http_response()
+      end)
+
+      assert {:ok, response} = TestWrapper.test_with_query_params("1", "hello", [])
       assert expected_body() == response.body
     end
   end
