@@ -4,7 +4,7 @@ defmodule SwaggerWrapper.MixProject do
   def project do
     [
       app: :swagger_wrapper,
-      version: "0.1.0",
+      version: "0.0.1",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -14,7 +14,7 @@ defmodule SwaggerWrapper.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      applications: [:httpoison],
+      # applications: [:httpoison],
       extra_applications: [:logger]
     ]
   end

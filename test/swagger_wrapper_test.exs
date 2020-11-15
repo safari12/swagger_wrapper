@@ -50,7 +50,7 @@ defmodule SwaggerWrapperTest do
         sample_http_response()
       end)
 
-      assert {:ok, response} = TestWrapper.test_hello("1", [])
+      assert {:ok, response} = TestWrapper.test_hello(1, [])
       assert expected_body() == response.body
     end
 
@@ -59,7 +59,7 @@ defmodule SwaggerWrapperTest do
         sample_http_response()
       end)
 
-      assert {:ok, response} = TestWrapper.test_hello_world("1", "blah", [])
+      assert {:ok, response} = TestWrapper.test_hello_world(1, "blah", [])
       assert expected_body() == response.body
     end
 
@@ -68,7 +68,7 @@ defmodule SwaggerWrapperTest do
         sample_http_response()
       end)
 
-      assert {:ok, response} = TestWrapper.test_with_query_params("1", "hello", [])
+      assert {:ok, response} = TestWrapper.test_with_query_params(1, "hello", [])
       assert expected_body() == response.body
     end
 
@@ -78,7 +78,7 @@ defmodule SwaggerWrapperTest do
         sample_http_response()
       end)
 
-      assert {:ok, response} = TestWrapper.test_with_both_params("1", "blah", "hello", "true", [])
+      assert {:ok, response} = TestWrapper.test_with_both_params(1, "blah", "hello", true, [])
       assert expected_body() == response.body
     end
   end
