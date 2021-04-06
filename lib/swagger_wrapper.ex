@@ -1,4 +1,6 @@
 defmodule SwaggerWrapper do
+  alias SwaggerWrapper.PathSpec
+
   defmacro __using__(opts) do
     filepath = opts[:filepath]
     http_adapter = opts[:http_adapter]
@@ -26,74 +28,39 @@ defmodule SwaggerWrapper do
   end
 
   defp generate_wrapper_function(path, json, base_url, http_adapter) do
-    info = json["paths"][path]["get"]
-    params = info["parameters"]
-    params_doc = get_params_doc(params)
-
-    path_param_names =
-      params
-      |> get_path_params()
-      |> get_param_names()
-
-    query_param_names =
-      params
-      |> get_query_params()
-      |> get_param_names()
-
-    fn_name = get_wrapper_fn_name(path, path_param_names)
-    url = base_url <> path
-
-    param_macro_vars = path_param_names |> get_macro_vars()
-    query_macro_vars = query_param_names |> get_macro_vars()
-    opts = Macro.var(:opts, nil)
-
-    doc = get_doc(info["summary"], params_doc)
-
     generate_http_wrapper_function(
-      doc,
-      url,
-      fn_name,
-      param_macro_vars,
-      path_param_names,
-      query_macro_vars,
-      query_param_names,
-      opts,
+      get_path_spec(json, path),
+      base_url <> path,
       http_adapter
     )
   end
 
-  defp generate_http_wrapper_function(
-         doc,
-         url,
-         fn_name,
-         param_macro_vars,
-         param_names,
-         query_macro_vars,
-         query_names,
-         opts,
-         http_adapter
-       ) do
+  defp generate_http_wrapper_function(spec, url, http_adapter) do
+    path_param_vars = spec.path_param_names |> get_macro_vars()
+    query_param_vars = spec.query_param_names |> get_macro_vars()
+    opts = Macro.var(:opts, nil)
+
     quote do
-      @doc unquote(doc)
-      def unquote(String.to_atom(fn_name))(
-            unquote_splicing(param_macro_vars ++ query_macro_vars ++ [opts])
+      @doc unquote(spec.doc)
+      def unquote(String.to_atom(spec.fn_name))(
+            unquote_splicing(path_param_vars ++ query_param_vars ++ [opts])
           ) do
         normalized_url =
-          unquote(param_macro_vars)
+          unquote(path_param_vars)
           |> Enum.with_index()
           |> Enum.reduce(unquote(url), fn {m, i}, acc ->
             Macro.escape(acc)
             |> String.replace(
-              "{#{Enum.at(unquote(param_names), i)}}",
+              "{#{Enum.at(unquote(spec.path_param_names), i)}}",
               "#{m}"
             )
           end)
 
         full_url =
-          unquote(query_macro_vars)
+          unquote(query_param_vars)
           |> Enum.with_index()
           |> Enum.reduce(%{}, fn {q, i}, acc ->
-            Map.put(acc, Enum.at(unquote(query_names), i), q)
+            Map.put(acc, Enum.at(unquote(spec.query_param_names), i), q)
           end)
           |> Map.merge(Enum.into(unquote(opts), %{}))
           |> URI.encode_query()
@@ -116,6 +83,34 @@ defmodule SwaggerWrapper do
         end
       end
     end
+  end
+
+  defp get_path_spec(json, path) do
+    info = json["paths"][path]["get"]
+    params = info["parameters"]
+    params_doc = get_params_doc(params)
+
+    path_param_names =
+      params
+      |> get_path_params()
+      |> get_param_names()
+
+    query_param_names =
+      params
+      |> get_query_params()
+      |> get_param_names()
+
+    fn_name = get_wrapper_fn_name(path, path_param_names)
+    doc = get_doc(info["summary"], params_doc)
+
+    %PathSpec{
+      summary: info["summary"],
+      description: info["description"],
+      doc: doc,
+      path_param_names: path_param_names,
+      query_param_names: query_param_names,
+      fn_name: fn_name
+    }
   end
 
   defp get_macro_vars(x), do: x |> Enum.map(&Macro.var(String.to_atom(&1), nil))
