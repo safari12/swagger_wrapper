@@ -151,7 +151,7 @@ defmodule SwaggerWrapper do
       ps ->
         ps
         |> Enum.reduce("## Parameters\n", fn x, acc ->
-          description = String.replace(x["description"], ~r/<(.|\n)*?>/, "")
+          description = String.replace(Map.get(x, "description", ""), ~r/<(.|\n)*?>/, "")
           acc <> "- #{x["name"]}: #{description}\n"
         end)
     end

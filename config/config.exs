@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :swagger_wrapper,
   http_adapter: HTTPoison
