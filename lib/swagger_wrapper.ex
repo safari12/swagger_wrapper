@@ -5,36 +5,38 @@ defmodule SwaggerWrapper do
     filepath = opts[:filepath]
     http_adapter = opts[:http_adapter]
     base_url = opts[:base_url]
+    headers = Keyword.get(opts, :headers, [])
 
     quote do
       import unquote(__MODULE__)
     end
 
     with {:ok, json} <- read_json_file(filepath) do
-      generate_wrapper(json, http_adapter, base_url)
+      generate_wrapper(json, http_adapter, base_url, headers)
     else
       err -> err
     end
   end
 
-  defp generate_wrapper(json, http_adapter, base_url) do
+  defp generate_wrapper(json, http_adapter, base_url, headers) do
     json["paths"]
     |> Map.keys()
     |> Enum.filter(fn p ->
       json["paths"][p]["get"] != nil
     end)
-    |> Enum.map(&generate_wrapper_function(&1, json, base_url, http_adapter))
+    |> Enum.map(&generate_wrapper_function(&1, json, base_url, http_adapter, headers))
   end
 
-  defp generate_wrapper_function(path, json, base_url, http_adapter) do
+  defp generate_wrapper_function(path, json, base_url, http_adapter, headers) do
     generate_http_wrapper_function(
       get_path_spec(json, path),
       base_url <> path,
-      http_adapter
+      http_adapter,
+      headers
     )
   end
 
-  defp generate_http_wrapper_function(spec, url, http_adapter) do
+  defp generate_http_wrapper_function(spec, url, http_adapter, default_headers) do
     path_param_vars = spec.path_param_names |> get_macro_vars()
     query_param_vars = spec.query_param_names |> get_macro_vars()
     opts = Macro.var(:opts, nil)
@@ -55,7 +57,7 @@ defmodule SwaggerWrapper do
             )
           end)
 
-        {headers, d_opts} = unquote(opts) |> Keyword.pop(:headers, [])
+        {headers, d_opts} = unquote(opts) |> Keyword.pop(:headers, unquote(default_headers))
 
         full_url =
           unquote(query_param_vars)

@@ -99,5 +99,14 @@ defmodule SwaggerWrapperTest do
       assert {:ok, response} = TestWrapper.test_with_headers(headers: [project_id: "test"])
       assert expected_body() == response.body
     end
+
+    test "test_with_default_headers" do
+      expect(Http.Mock, :get, fn @base_url <> "/test/with/headers", [project_id: "test"] ->
+        sample_http_response()
+      end)
+
+      assert {:ok, response} = TestWrapper.test_with_headers([])
+      assert expected_body() == response.body
+    end
   end
 end
