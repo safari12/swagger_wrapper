@@ -4,21 +4,20 @@ defmodule SwaggerWrapper do
   defmacro __using__(opts) do
     filepath = opts[:filepath]
     http_adapter = opts[:http_adapter]
+    base_url = opts[:base_url]
 
     quote do
       import unquote(__MODULE__)
     end
 
     with {:ok, json} <- read_json_file(filepath) do
-      generate_wrapper(json, http_adapter)
+      generate_wrapper(json, http_adapter, base_url)
     else
       err -> err
     end
   end
 
-  defp generate_wrapper(json, http_adapter) do
-    base_url = "https://#{json["host"]}#{json["basePath"]}"
-
+  defp generate_wrapper(json, http_adapter, base_url) do
     json["paths"]
     |> Map.keys()
     |> Enum.filter(fn p ->
@@ -56,13 +55,15 @@ defmodule SwaggerWrapper do
             )
           end)
 
+        {headers, d_opts} = unquote(opts) |> Keyword.pop(:headers, [])
+
         full_url =
           unquote(query_param_vars)
           |> Enum.with_index()
           |> Enum.reduce(%{}, fn {q, i}, acc ->
             Map.put(acc, Enum.at(unquote(spec.query_param_names), i), q)
           end)
-          |> Map.merge(Enum.into(unquote(opts), %{}))
+          |> Map.merge(Enum.into(d_opts, %{}))
           |> URI.encode_query()
           |> (fn x ->
                 case x do
@@ -74,7 +75,7 @@ defmodule SwaggerWrapper do
                 end
               end).()
 
-        case unquote(http_adapter).get(Macro.escape(full_url)) do
+        case unquote(http_adapter).get(Macro.escape(full_url), headers) do
           {:ok, %{body: body} = response} ->
             {:ok, %{response | body: Jason.decode!(body)}}
 

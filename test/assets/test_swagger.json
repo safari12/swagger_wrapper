@@ -103,6 +103,48 @@
         }
       }
     },
+    "/test/with/query/optional/params": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint with multiple params",
+        "description": "Simple Test Endpoint with multiple params",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "description": "id param",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "description": "address param",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
+    },
+    "/test/with/headers": {
+      "get": {
+        "tags": ["test"],
+        "summary": "Simple Test Endpoint with multiple params",
+        "description": "Simple Test Endpoint with multiple params",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Status OK"
+          }
+        }
+      }
+    },
     "/test/{id}/with/{address}/both/params": {
       "get": {
         "tags": ["test"],

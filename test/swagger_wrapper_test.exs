@@ -6,7 +6,7 @@ defmodule SwaggerWrapperTest do
   @base_url "https://api.example.com/api/v3"
 
   defp sample_http_response do
-    {:ok, %HTTPoison.Response{status_code: 200, body: Poison.encode!(%{message: "hello world"})}}
+    {:ok, %HTTPoison.Response{status_code: 200, body: Jason.encode!(%{message: "hello world"})}}
   end
 
   defp expected_body do
@@ -37,7 +37,7 @@ defmodule SwaggerWrapperTest do
 
   describe "should create http request" do
     test "test" do
-      expect(Http.Mock, :get, fn @base_url <> "/test" ->
+      expect(Http.Mock, :get, fn @base_url <> "/test", _headers ->
         sample_http_response()
       end)
 
@@ -46,7 +46,7 @@ defmodule SwaggerWrapperTest do
     end
 
     test "test_hello" do
-      expect(Http.Mock, :get, fn @base_url <> "/test/1/hello" ->
+      expect(Http.Mock, :get, fn @base_url <> "/test/1/hello", _headers ->
         sample_http_response()
       end)
 
@@ -55,7 +55,7 @@ defmodule SwaggerWrapperTest do
     end
 
     test "test_hello_world" do
-      expect(Http.Mock, :get, fn @base_url <> "/test/1/hello/blah/world" ->
+      expect(Http.Mock, :get, fn @base_url <> "/test/1/hello/blah/world", _headers ->
         sample_http_response()
       end)
 
@@ -64,7 +64,7 @@ defmodule SwaggerWrapperTest do
     end
 
     test "test_with_query_params" do
-      expect(Http.Mock, :get, fn @base_url <> "/test/with/query/params?address=hello&id=1" ->
+      expect(Http.Mock, :get, fn @base_url <> "/test/with/query/params?address=hello&id=1", _headers ->
         sample_http_response()
       end)
 
@@ -72,13 +72,31 @@ defmodule SwaggerWrapperTest do
       assert expected_body() == response.body
     end
 
+    test "test_with_query_optional_params" do
+      expect(Http.Mock, :get, fn @base_url <> "/test/with/query/optional/params?address=hello&id=1", _headers ->
+        sample_http_response()
+      end)
+
+      assert {:ok, response} = TestWrapper.test_with_query_optional_params([address: "hello", id: 1])
+      assert expected_body() == response.body
+    end
+
     test "test_with_both_params" do
       expect(Http.Mock, :get, fn @base_url <>
-                                   "/test/1/with/blah/both/params?enabled=true&message=hello" ->
+                                   "/test/1/with/blah/both/params?enabled=true&message=hello", _headers ->
         sample_http_response()
       end)
 
       assert {:ok, response} = TestWrapper.test_with_both_params(1, "blah", "hello", true, [])
+      assert expected_body() == response.body
+    end
+
+    test "test_with_headers" do
+      expect(Http.Mock, :get, fn @base_url <> "/test/with/headers", [project_id: "test"] ->
+        sample_http_response()
+      end)
+
+      assert {:ok, response} = TestWrapper.test_with_headers(headers: [project_id: "test"])
       assert expected_body() == response.body
     end
   end
