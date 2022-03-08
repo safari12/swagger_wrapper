@@ -76,7 +76,7 @@ defmodule SwaggerWrapper do
 
         case unquote(http_adapter).get(Macro.escape(full_url)) do
           {:ok, %{body: body} = response} ->
-            {:ok, %{response | body: Poison.decode!(body)}}
+            {:ok, %{response | body: Jason.decode!(body)}}
 
           err ->
             err
@@ -159,7 +159,7 @@ defmodule SwaggerWrapper do
 
   def read_json_file(filepath) do
     with {:ok, body} <- File.read(filepath),
-         {:ok, json} <- Poison.decode(body) do
+         {:ok, json} <- Jason.decode(body) do
       {:ok, json}
     else
       err -> err

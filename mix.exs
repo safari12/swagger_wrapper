@@ -5,7 +5,7 @@ defmodule SwaggerWrapper.MixProject do
     [
       app: :swagger_wrapper,
       version: "0.0.1",
-      elixir: "~> 1.10",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -22,7 +22,7 @@ defmodule SwaggerWrapper.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:poison, "~> 4.0"},
+      {:jason, "~> 1.3"},
       {:httpoison, "~> 1.7"},
       {:mox, "~> 1.0", only: [:test], runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
